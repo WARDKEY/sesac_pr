@@ -14,5 +14,4 @@ if (age >= 20) {
 
 let now = new Date().getHours();
 
-
 console.log(now >= 0 && now <= 12 ? "오전": "오후");
