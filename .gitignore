@@ -122,3 +122,5 @@ package-lock.json
 package.json
 yarn.lock
 .env
+
+.DS_Store
