@@ -3,13 +3,13 @@ import express from "express";
 
 const router = express.Router();
 
-// 사용자 생성 API
+// 유저 생성
 router.post("/users", async (req, res, next) => {
   try {
     const { email, password, nickname } = req.body;
 
     // 이메일 중복 확인
-    const existingUser = await prisma.users.findUnique({
+    const existingUser = await prisma.Users.findUnique({
       where: { email },
     });
     if (existingUser) {
@@ -17,7 +17,7 @@ router.post("/users", async (req, res, next) => {
     }
 
     // 새 사용자 생성
-    const newUser = await prisma.users.create({
+    const newUser = await prisma.Users.create({
       data: {
         email,
         password,
@@ -36,10 +36,10 @@ router.post("/users", async (req, res, next) => {
   }
 });
 
-// 모든 사용자 조회 API (간단한 예시)
+// 전체 유저 목록 조회
 router.get("/users", async (req, res, next) => {
   try {
-    const users = await prisma.users.findMany({
+    const users = await prisma.Users.findMany({
       select: {
         userId: true,
         email: true,
@@ -56,14 +56,14 @@ router.get("/users", async (req, res, next) => {
   }
 });
 
-// 특정 사용자 조회 API (관련된 게시글 포함)
+// 특정 유저 조회
 router.get("/users/:userId", async (req, res, next) => {
   try {
     const { userId } = req.params;
-    const user = await prisma.users.findUnique({
+    const user = await prisma.Users.findUnique({
       where: { userId: +userId },
       include: {
-        Posts: {
+        posts: {
           // User에 연결된 모든 Posts를 함께 조회 (관계 필드 사용)
           select: {
             postId: true,
@@ -81,6 +81,7 @@ router.get("/users/:userId", async (req, res, next) => {
       return res.status(404).json({ message: "사용자를 찾을 수 없습니다." });
     }
 
+    // 비밀번호 제외
     const { password: _, ...userData } = user;
     return res.status(200).json({ data: userData });
   } catch (error) {
@@ -88,13 +89,14 @@ router.get("/users/:userId", async (req, res, next) => {
   }
 });
 
-// 사용자 정보 수정 API (비밀번호 확인 필요)
+// 유저 정보 수정 (비밀번호 확인 필요)
 router.put("/users/:userId", async (req, res, next) => {
   try {
     const { userId } = req.params;
     const { email, password, newPassword, nickname } = req.body;
 
-    const user = await prisma.users.findUnique({
+    // userId에 해당하는 유저 찾음
+    const user = await prisma.Users.findUnique({
       where: { userId: +userId },
     });
 
@@ -107,7 +109,7 @@ router.put("/users/:userId", async (req, res, next) => {
       return res.status(401).json({ message: "비밀번호가 일치하지 않습니다." });
     }
 
-    await prisma.users.update({
+    await prisma.Users.update({
       where: { userId: +userId },
       data: {
         email: email || user.email, // 변경할 값이 없으면 기존 값 유지
@@ -125,13 +127,13 @@ router.put("/users/:userId", async (req, res, next) => {
   }
 });
 
-// 사용자 삭제 API (비밀번호 확인 필요)
+// 유저 삭제 API (비밀번호 확인 필요)
 router.delete("/users/:userId", async (req, res, next) => {
   try {
     const { userId } = req.params;
     const { password } = req.body;
 
-    const user = await prisma.users.findUnique({
+    const user = await prisma.Users.findUnique({
       where: { userId: +userId },
     });
 
@@ -144,13 +146,45 @@ router.delete("/users/:userId", async (req, res, next) => {
       return res.status(401).json({ message: "비밀번호가 일치하지 않습니다." });
     }
 
-    await prisma.users.delete({
+    await prisma.Users.delete({
       where: { userId: +userId },
     });
 
     return res
       .status(200)
       .json({ message: "사용자가 성공적으로 삭제되었습니다." });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 특정 유저의 게시글 조회
+router.get("/users/:id/posts", async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const user = await prisma.Users.findUnique({
+      where: { userId: +id },
+    });
+
+    // 유저가 존재하는지 확인
+    if (!user) {
+      return res.status(404).json({ message: "사용자를 찾을 수 없습니다." });
+    }
+
+    // 게시글 정보만 조회
+    const userPosts = await prisma.posts.findMany({
+      where: { userId: +id },
+    });
+
+    // 게시글이 존재하는지 확인
+    if (!userPosts) {
+      return res.status(404).json({ message: "게시글을 찾을 수 없습니다." });
+    }
+
+    return res.status(200).json({
+      data: userPosts,
+    });
   } catch (error) {
     next(error);
   }
